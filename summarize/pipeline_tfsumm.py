@@ -111,7 +111,7 @@ def topk_sents(sents, k: int = 5):
 
     ranked = sorted(sents, key = sents.get)
 
-    return ranked[-k:]
+    return [sents[s] for s in ranked[-k:]]
 
 if __name__ == "__main__":
 
