@@ -3,7 +3,8 @@ import collections
 import math
 
 nltk.download("wordnet")
-from nltk.corpus import wordnet
+nltk.download("stopwords")
+from nltk.corpus import wordnet, stopwords
 from nltk.stem.porter import PorterStemmer
 
 def lem_and_stem(word, stemmer = PorterStemmer()):
@@ -21,8 +22,9 @@ def word_frequencies(bag: list):
 
     for word in bag:
 
-        word = lem_and_stem(word)
-        word_map[word] += 1
+        word_root = lem_and_stem(word)
+        
+        word_map[word_root] += 1
 
     return word_map
 
@@ -31,7 +33,7 @@ def get_tf_matrix(sentences: list):
     tf_matrix = {}
 
     for sentence in sentences:
-        tokens = sentence.split()
+        tokens = [word for word in sentence.split() if word not in stopwords.words("english")]
         tf_table = word_frequencies(tokens)
 
         for word in tf_table:
@@ -109,10 +111,49 @@ def avg_sent_score(sent_val):
 
 def topk_sents(sents, k: int = 5):
 
-    ranked = sorted(sents, key = sents.get)
+    ranked = sorted(sents, key = sents.get, reverse = True)
 
-    return [sents[s] for s in ranked[-k:]]
+    return [s for s in ranked[:k]]
+
 
 if __name__ == "__main__":
 
-    pass
+    targets = []
+
+    with open("targets.txt", 'r') as file:
+        targets = [int(target) for target in file.readline().split()]
+
+    for i, target in enumerate(targets):
+        
+        target_bow = []
+
+        with open("../bags/{}.bow".format(target), 'r') as file:
+            target_bow = file.readline().split()
+
+        with open("../sentences/{}.sentences".format(target), 'r') as file:
+            target_sents = file.readlines()
+
+        target_sents = [sent.strip() for sent in target_sents if len(sent.split()) > 10]
+        total_docs = len(target_sents)
+
+        print("total sentences: ", total_docs)
+
+        tf_matrix = get_tf_matrix(target_sents)
+        
+        docs_per_term = get_idf_freqs(tf_matrix)
+        idf_matrix = get_idf_matrix(tf_matrix, docs_per_term, total_docs)
+
+        tf_idf = tf_idf_matrix(tf_matrix, idf_matrix)
+
+        sent_scores = sentence_score(tf_idf)
+        ranked_sents = topk_sents(sent_scores, k = int(0.05 * total_docs))
+
+        # generate summary using these top-k sentences
+        article_summary = '. '.join(ranked_sents)
+
+        for sent in ranked_sents:
+            print("{} | [ {} ]".format(sent, sent_scores[sent]))
+
+        print('\n')
+        print(article_summary)
+        print('\n\n')
