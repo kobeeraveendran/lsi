@@ -2,9 +2,12 @@ import nltk
 from gensim import corpora
 from gensim.models import LsiModel, coherencemodel, lsimodel
 from gensim.models import CoherenceModel
+from gensim.summarization import summarize
+from nltk.corpus.reader.nombank import NombankPointer
+from rouge_score import rouge_scorer
 
-# nltk.download("wordnet")
-# nltk.download("stopwords")
+nltk.download("wordnet")
+nltk.download("stopwords")
 from nltk.corpus import wordnet, stopwords
 from nltk.stem.porter import PorterStemmer
 
@@ -140,6 +143,10 @@ if __name__ == "__main__":
     with open("targets.txt", 'r') as file:
         targets = [int(target) for target in file.readline().split()]
 
+    summaries = []
+    scores = []
+    rouge = rouge_scorer.RougeScorer(["rouge1", "rougeL"], use_stemmer = True)
+
     for i, target in enumerate(targets):
 
         with open("../sentences/{}.sentences".format(target), 'r') as file:
@@ -170,7 +177,9 @@ if __name__ == "__main__":
 
         vecs = vec_sort(lsi_corpus, num_topics = 200)
 
-        sent_nums, top_sents = sent_rank(8, topics = 200, sorted_vecs = vecs)
+        num_sents = 5
+
+        sent_nums, top_sents = sent_rank(num_sents, topics = 200, sorted_vecs = vecs)
 
         #print("sent nums: ", sent_nums)
         #print("top sents: ", top_sents)
@@ -178,12 +187,14 @@ if __name__ == "__main__":
         summary = []
         index = 0
 
-        topk_sents = set(sent_nums[:8])
+        topk_sents = set(sent_nums[:num_sents])
 
         cleaned_target_sents = []
 
         for i, sentence in enumerate(prep_sents):
             cleaned_target_sents.append(' '.join(sentence))
+
+        cleaned_orig_text = '. '.join(cleaned_target_sents)
 
         for i, sentence in enumerate(cleaned_target_sents):
 
@@ -192,6 +203,12 @@ if __name__ == "__main__":
 
         # print("original: \n")
         # print(' '.join(target_sents))
+        
+        summary = '. '.join(summary)
+        summaries.append(summary)
 
-        print("summary: \n")
-        print('. '.join(summary))
+        tr_summary = summarize(cleaned_orig_text)
+        score = rouge.score(summary, tr_summary)
+        scores.append(score)
+
+    overall = None
