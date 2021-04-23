@@ -1,8 +1,10 @@
 import nltk
 from gensim.summarization import summarize
-import rouge_score
+from rouge_score import rouge_scorer
 import collections
 import math
+
+import rouge_score
 
 nltk.download("wordnet")
 nltk.download("stopwords")
@@ -125,6 +127,14 @@ if __name__ == "__main__":
     with open("targets.txt", 'r') as file:
         targets = [int(target) for target in file.readline().split()]
 
+    overall_text = []
+    overall_sents = []
+
+    summaries = []
+    scores = []
+
+    rouge = rouge_scorer.RougeScorer(["rouge1", "rougeL"], use_stemmer = True)
+
     for i, target in enumerate(targets):
 
         with open("../sentences/{}.sentences".format(target), 'r') as file:
@@ -147,10 +157,17 @@ if __name__ == "__main__":
 
         # generate summary using these top-k sentences
         article_summary = '. '.join(ranked_sents)
+        summaries.append(article_summary)
 
-        for sent in ranked_sents:
-            print("{} | [ {} ]".format(sent, sent_scores[sent]))
+        # for sent in ranked_sents:
+        #     print("{} | [ {} ]".format(sent, sent_scores[sent]))
 
-        print('\n')
-        print(article_summary)
-        print('\n\n')
+        article_text = '. '.join(target_sents)
+        overall_text.append(article_text)
+
+        tr_summary = summarize(article_text)
+
+        score = rouge.score(article_summary, tr_summary)
+        scores.append(score)
+
+    tr_overall_summary = summarize('. '.join(overall_text))
