@@ -156,7 +156,7 @@ if __name__ == "__main__":
             curr_sent = []
 
             for word in target.split():
-                if len(word) < 2 and word != 'a' and word != 'i':
+                if len(word) < 2 and word != 'a' and word != 'i' and word not in stopwords.words("english"):
                     continue
                 curr_sent.append(word)
 
