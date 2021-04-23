@@ -1,4 +1,6 @@
 import nltk
+from gensim.summarization import summarize
+import rouge_score
 import collections
 import math
 
@@ -124,11 +126,6 @@ if __name__ == "__main__":
         targets = [int(target) for target in file.readline().split()]
 
     for i, target in enumerate(targets):
-        
-        target_bow = []
-
-        with open("../bags/{}.bow".format(target), 'r') as file:
-            target_bow = file.readline().split()
 
         with open("../sentences/{}.sentences".format(target), 'r') as file:
             target_sents = file.readlines()
