@@ -1,4 +1,4 @@
-# AutoSurvey
+# Automatic Multi-Doc Summarization using LSI
 
 ## Requirements
 
@@ -16,16 +16,18 @@ Run the setup script provided (```cd scripts/ && ./setup.sh```) or follow the st
 # if you run into issues, using environment_verbose.yml may help for finding missing packages
 conda env create --file environment.yml
 
-conda activate autosurvey
+conda activate autosumm
 
 # download a small set of research papers
 # additional command line args available; to view, run as: python arxiv_fetch.py -h
+# skip this step if you'd like to use the provided data
 python arxiv_fetch.py
 
 # download and install spaCy language model
 python -m spacy download en_core_web_sm
 
 # preprocess the downloaded documents
+# skip this step if you'd like to use the provided data
 cd summarize/ && python preprocess.py
 ```
 
@@ -41,12 +43,12 @@ Run the entire pipeline:
 ```bash
 cd summarize/
 
+# run the LSI model experiments
 # default: extracts 200 latent topics from corpus, summarizes only the documents specified in targets.txt
-python pipeline.py
+python pipeline_lsi.py
 
-# custom: 50 topics, summarizes/computes scores for summaries of all documents in the training corpus
-# NOTE: currently, the --all flag must be specified to log scores for plot generation
-python pipeline.py --num_topics 50 --all
+# run the TF-IDF summarizer experiments
+python pipeline_tfsumm.py
 ```
 
 After you've run the pipeline for *different* configurations (i.e. different numbers of topics to extract), you can generate plots like so:
