@@ -86,55 +86,104 @@ def vec_sort(corpus_lsi, num_topics):
 
 def sent_rank(summary_size, topics, sorted_vecs):
 
-    # top_sents = []
-    # sent_nums = []
-    # sent_indices = set()
+    top_sents = []
+    sent_nums = []
+    sent_indices = set()
 
-    # sent_count = 0
+    sent_count = 0
 
-    # for i in range(summary_size):
-    #     for j in range(topics):
-
-    #         sent_index = vecs[j][i][0]
-    #         if sent_index not in sent_indices:
-    #             top_sents.append(vecs[j][i])
-    #             sent_nums.append(sent_index)
-    #             sent_indices.add(sent_index)
-
-    #             if sent_count == summary_size:
-    #                 break
-
-    # return sent_nums, top_sents
-
-    topSentences = []
-    sent_no = []
-    sentInd = set()
-    sCount = 0
-
-    #print(len(sorted_vecs))
-    #print(len(sorted_vecs[0]))
-    
     for i in range(summary_size):
         for j in range(topics):
+
             vecs = sorted_vecs[j]
 
             if len(vecs) <= i:
                 continue
 
-            #print("vecs length: ", len(vecs))
-            #print('i: ', i)
-            si = vecs[i][0]
-            #print("si: ", si)
-            if si not in sentInd:
-                sent_no.append(si)
-                topSentences.append(vecs[i])
-                sentInd.add(si)
-                sCount +=1
-                if sCount == summary_size:
+            sent_index = vecs[i][0]
+
+            if sent_index not in sent_indices:
+                top_sents.append(vecs[i])
+                sent_nums.append(sent_index)
+                sent_indices.add(sent_index)
+
+                sent_count += 1
+                if sent_count == summary_size:
                     break
 
-    return sent_no, topSentences
+    return sent_nums, top_sents
 
+    # topSentences = []
+    # sent_no = []
+    # sentInd = set()
+    # sCount = 0
+
+    # #print(len(sorted_vecs))
+    # #print(len(sorted_vecs[0]))
+    
+    # for i in range(summary_size):
+    #     for j in range(topics):
+    #         vecs = sorted_vecs[j]
+
+    #         if len(vecs) <= i:
+    #             continue
+
+    #         #print("vecs length: ", len(vecs))
+    #         #print('i: ', i)
+    #         si = vecs[i][0]
+    #         #print("si: ", si)
+    #         if si not in sentInd:
+    #             sent_no.append(si)
+    #             topSentences.append(vecs[i])
+    #             sentInd.add(si)
+    #             sCount +=1
+    #             if sCount == summary_size:
+    #                 break
+
+    # return sent_no, topSentences
+
+def lsi_summarize(prep_sents):
+
+    corpus_dict, doc_term_matrix = term_freqs(prep_sents)
+
+    lsi_model = lsi(corpus_dict, doc_term_matrix, topics = 200)
+    lsi_corpus = lsi_model[doc_term_matrix]
+
+    vecs = vec_sort(lsi_corpus, num_topics = 200)
+
+    num_sents = int(0.05 * len(prep_sents))
+
+    sent_nums, top_sents = sent_rank(num_sents, topics = 200, sorted_vecs = vecs)
+
+    #print("sent nums: ", sent_nums)
+    #print("top sents: ", top_sents)
+
+    summary = []
+    index = 0
+
+    topk_sents = set(sent_nums[:num_sents])
+
+    cleaned_target_sents = []
+
+    for i, sentence in enumerate(prep_sents):
+        cleaned_target_sents.append(' '.join(sentence))
+
+    overall_sents.extend(prep_sents)
+    cleaned_orig_text = '. '.join(cleaned_target_sents)
+
+    summary = []
+
+    for i, sentence in enumerate(cleaned_target_sents):
+
+        if i in topk_sents:
+            summary.append(sentence)
+
+    # print("original: \n")
+    # print(' '.join(target_sents))
+    
+    summary = '. '.join(summary)
+
+    return summary, cleaned_target_sents, cleaned_orig_text
 
 if __name__ == "__main__":
 
@@ -142,6 +191,9 @@ if __name__ == "__main__":
 
     with open("targets.txt", 'r') as file:
         targets = [int(target) for target in file.readline().split()]
+
+    overall_text = []
+    overall_sents = []
 
     summaries = []
     scores = []
@@ -170,45 +222,31 @@ if __name__ == "__main__":
             if curr_sent:
                 prep_sents.append(curr_sent)
 
-        corpus_dict, doc_term_matrix = term_freqs(prep_sents)
+        summary, _, cleaned_orig_text = lsi_summarize(prep_sents)
+        overall_text.append(cleaned_orig_text)
+        overall_sents.extend(prep_sents)
 
-        lsi_model = lsi(corpus_dict, doc_term_matrix, topics = 200)
-        lsi_corpus = lsi_model[doc_term_matrix]
-
-        vecs = vec_sort(lsi_corpus, num_topics = 200)
-
-        num_sents = 5
-
-        sent_nums, top_sents = sent_rank(num_sents, topics = 200, sorted_vecs = vecs)
-
-        #print("sent nums: ", sent_nums)
-        #print("top sents: ", top_sents)
-
-        summary = []
-        index = 0
-
-        topk_sents = set(sent_nums[:num_sents])
-
-        cleaned_target_sents = []
-
-        for i, sentence in enumerate(prep_sents):
-            cleaned_target_sents.append(' '.join(sentence))
-
-        cleaned_orig_text = '. '.join(cleaned_target_sents)
-
-        for i, sentence in enumerate(cleaned_target_sents):
-
-            if i in topk_sents:
-                summary.append(sentence)
-
-        # print("original: \n")
-        # print(' '.join(target_sents))
-        
-        summary = '. '.join(summary)
+        #print(summary)
         summaries.append(summary)
 
         tr_summary = summarize(cleaned_orig_text)
+
         score = rouge.score(summary, tr_summary)
         scores.append(score)
 
-    overall = None
+    overall_text = '. '.join(overall_text)
+    tr_overall_summary = summarize(overall_text)
+    lsi_overall_summary, _, _ = lsi_summarize(overall_sents)
+    overall_score = rouge.score(lsi_overall_summary, tr_overall_summary)
+
+    print()
+
+    for i, score in enumerate(scores):
+        print("Scores for document ", i)
+        print("R-1 Precision: {:.3f} | R-L Precision: {:.3f}".format(score["rouge1"].precision, score["rougeL"].precision))
+        print("R-1 Recall:    {:.3f} | R-L Recall:    {:.3f}".format(score["rouge1"].recall, score["rougeL"].recall))
+        print()
+
+    print("Overall scores: ")
+    print("R-1 Precision: {:.3f} | R-L Precision: {:.3f}".format(overall_score["rouge1"].precision, overall_score["rougeL"].precision))
+    print("R-1 Recall:    {:.3f} | R-L Recall:    {:.3f}".format(overall_score["rouge1"].recall, overall_score["rougeL"].recall))
