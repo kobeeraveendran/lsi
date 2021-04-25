@@ -28,6 +28,9 @@ def term_freqs(docs):
 
     return corpus_dict, doc_term_matrix
 
+# some steps for topic extraction, and references for LSI model creation are adapted from the following sources:
+# https://www.datacamp.com/community/tutorials/discovering-hidden-topics-python
+# https://github.com/yeedas/Abstractive_Summary_of_Transcriptions/blob/master/Summarization_using_Latent_Semantic_Analysis.ipynb
 def lsi(corpus_dict, doc_term_matrix, topics):
 
     #corpus_dict, doc_term_matrix = term_freqs(docs)
@@ -35,6 +38,9 @@ def lsi(corpus_dict, doc_term_matrix, topics):
     lsi_model = LsiModel(doc_term_matrix, num_topics = topics, id2word = corpus_dict)
     #print(lsi_model.print_topics(num_topics = topics, num_words = words))
     return lsi_model
+
+# would have been desirable for better results, but takes too long to run for complex articles, which 
+# can have hundreds of latent topics
 
 # def optimal_lsi(corpus_dict, doc_term_matrix, sents, max_topics = 300):
 
@@ -60,29 +66,17 @@ def lsi(corpus_dict, doc_term_matrix, topics):
 
 #     return best_model, optimal_topics
 
-def take_next(item):
-    return item[1]
-
 def vec_sort(corpus_lsi, num_topics):
 
-    vecsSort = list(map(lambda i: list(), range(num_topics)))
-    for i,docv in enumerate(corpus_lsi):
-        for sc in docv:
-            isent = (i, abs(sc[1]))
-            vecsSort[sc[0]].append(isent)
-    vecsSort = list(map(lambda x: sorted(x,key= take_next, reverse=True), vecsSort))
+    vecs = list(map(lambda i: list(), range(num_topics)))
 
-    return vecsSort
+    for i, doc_vec in enumerate(corpus_lsi):
+        for sc in doc_vec:
+            vecs[sc[0]].append((i, abs(sc[1])))
 
-    # vecs = list(map(lambda i: list(), range(2)))
+    vecs = list(map(lambda x: sorted(x, key = lambda y: y[1], reverse = True), vecs))
 
-    # for i, doc_vec in enumerate(corpus_lsi):
-    #     for scalar in doc_vec:
-    #         vecs[scalar[0]].append((i, abs(scalar[1])))
-
-    # vecs = list(map(lambda x: sorted(x, key = lambda y: y[1], reverse = True), vecs))
-
-    # return vecs
+    return vecs
 
 def sent_rank(summary_size, topics, sorted_vecs):
 
@@ -92,55 +86,25 @@ def sent_rank(summary_size, topics, sorted_vecs):
 
     sent_count = 0
 
-    for i in range(summary_size):
-        for j in range(topics):
+    
+    for j in range(topics):
 
-            vecs = sorted_vecs[j]
+        vecs = sorted_vecs[j]
+        sent_index = vecs[0][0]
 
-            if len(vecs) <= i:
-                continue
+        if sent_index not in sent_indices:
+            top_sents.append(vecs[i])
+            sent_nums.append(sent_index)
+            sent_indices.add(sent_index)
 
-            sent_index = vecs[i][0]
+            sent_count += 1
+            if sent_count == summary_size:
+                break
 
-            if sent_index not in sent_indices:
-                top_sents.append(vecs[i])
-                sent_nums.append(sent_index)
-                sent_indices.add(sent_index)
-
-                sent_count += 1
-                if sent_count == summary_size:
-                    break
+    print(summary_size, len(sent_nums))
 
     return sent_nums, top_sents
 
-    # topSentences = []
-    # sent_no = []
-    # sentInd = set()
-    # sCount = 0
-
-    # #print(len(sorted_vecs))
-    # #print(len(sorted_vecs[0]))
-    
-    # for i in range(summary_size):
-    #     for j in range(topics):
-    #         vecs = sorted_vecs[j]
-
-    #         if len(vecs) <= i:
-    #             continue
-
-    #         #print("vecs length: ", len(vecs))
-    #         #print('i: ', i)
-    #         si = vecs[i][0]
-    #         #print("si: ", si)
-    #         if si not in sentInd:
-    #             sent_no.append(si)
-    #             topSentences.append(vecs[i])
-    #             sentInd.add(si)
-    #             sCount +=1
-    #             if sCount == summary_size:
-    #                 break
-
-    # return sent_no, topSentences
 
 def lsi_summarize(prep_sents):
 
@@ -159,7 +123,6 @@ def lsi_summarize(prep_sents):
     #print("top sents: ", top_sents)
 
     summary = []
-    index = 0
 
     topk_sents = set(sent_nums[:num_sents])
 
@@ -206,7 +169,9 @@ if __name__ == "__main__":
 
         target_sents = [sent.strip() for sent in target_sents if len(sent.split()) > 10]
         total_docs = len(target_sents)
-        print("\n\ntotal docs: ", total_docs)
+
+        print("Document", i)
+        print("total docs: ", total_docs)
 
         #print(target_sents[:10])
 
@@ -226,20 +191,26 @@ if __name__ == "__main__":
         overall_text.append(cleaned_orig_text)
         overall_sents.extend(prep_sents)
 
+        print("Summary:\n")
+        print(summary)
+        print('\n')
+
         #print(summary)
         summaries.append(summary)
 
-        tr_summary = summarize(cleaned_orig_text)
+        tr_summary = summarize(cleaned_orig_text, ratio = 0.05)
 
         score = rouge.score(summary, tr_summary)
         scores.append(score)
 
     overall_text = '. '.join(overall_text)
-    tr_overall_summary = summarize(overall_text)
+    tr_overall_summary = summarize(overall_text, ratio = 0.005)
     lsi_overall_summary, _, _ = lsi_summarize(overall_sents)
     overall_score = rouge.score(lsi_overall_summary, tr_overall_summary)
 
-    print()
+    print("Overall summary:")
+    print(lsi_overall_summary)
+    print('\n')
 
     for i, score in enumerate(scores):
         print("Scores for document ", i)
