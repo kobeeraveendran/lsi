@@ -122,6 +122,8 @@ def topk_sents(sents, k: int = 5):
 
 def tfidf_summarize(target_sents):
 
+    total_docs = len(target_sents)
+
     tf_matrix = get_tf_matrix(target_sents)
         
     docs_per_term = get_idf_freqs(tf_matrix)
@@ -163,10 +165,15 @@ if __name__ == "__main__":
 
         #overall_sents.append(target_sents)
 
-        print("total sentences: ", total_docs)
+        print("Document", i)
+        print("total docs: ", total_docs)
 
+        # tf-idf implementation based on the following source:
+        # https://github.com/akashp1712/nlp-akash/blob/master/text-summarization/TF_IDF_Summarization.py
         article_summary = tfidf_summarize(target_sents)
-
+        print("Summary:\n")
+        print(article_summary)
+        print('\n')
         # print(article_summary)
         # print('\n')
         summaries.append(article_summary)
@@ -178,14 +185,18 @@ if __name__ == "__main__":
         article_text = '. '.join(target_sents)
         overall_text.append(article_text)
 
-        tr_summary = summarize(article_text)
+        tr_summary = summarize(article_text, ratio = 0.05)
 
         score = rouge.score(article_summary, tr_summary)
         scores.append(score)
 
     overall_text = '. '.join(overall_text)
-    tr_overall_summary = summarize(overall_text)
+    tr_overall_summary = summarize(overall_text, ratio = 0.005)
     tfidf_overall_summary = tfidf_summarize(overall_sents)
+
+    print("Overall summary:")
+    print(tfidf_overall_summary)
+    print('\n')
     overall_score = rouge.score(tfidf_overall_summary, tr_overall_summary)
     
     print()
