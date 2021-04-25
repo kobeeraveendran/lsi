@@ -120,6 +120,24 @@ def topk_sents(sents, k: int = 5):
     return [s for s in ranked[:k]]
 
 
+def tfidf_summarize(target_sents):
+
+    tf_matrix = get_tf_matrix(target_sents)
+        
+    docs_per_term = get_idf_freqs(tf_matrix)
+    idf_matrix = get_idf_matrix(tf_matrix, docs_per_term, total_docs)
+
+    tf_idf = tf_idf_matrix(tf_matrix, idf_matrix)
+
+    sent_scores = sentence_score(tf_idf)
+    ranked_sents = topk_sents(sent_scores, k = int(0.05 * total_docs))
+
+    # generate summary using these top-k sentences
+    article_summary = '. '.join(ranked_sents)
+    summaries.append(article_summary)
+
+    return article_summary
+
 if __name__ == "__main__":
 
     targets = []
@@ -143,25 +161,20 @@ if __name__ == "__main__":
         target_sents = [sent.strip() for sent in target_sents if len(sent.split()) > 10]
         total_docs = len(target_sents)
 
+        #overall_sents.append(target_sents)
+
         print("total sentences: ", total_docs)
 
-        tf_matrix = get_tf_matrix(target_sents)
-        
-        docs_per_term = get_idf_freqs(tf_matrix)
-        idf_matrix = get_idf_matrix(tf_matrix, docs_per_term, total_docs)
+        article_summary = tfidf_summarize(target_sents)
 
-        tf_idf = tf_idf_matrix(tf_matrix, idf_matrix)
-
-        sent_scores = sentence_score(tf_idf)
-        ranked_sents = topk_sents(sent_scores, k = int(0.05 * total_docs))
-
-        # generate summary using these top-k sentences
-        article_summary = '. '.join(ranked_sents)
+        # print(article_summary)
+        # print('\n')
         summaries.append(article_summary)
 
         # for sent in ranked_sents:
         #     print("{} | [ {} ]".format(sent, sent_scores[sent]))
 
+        overall_sents.extend(target_sents)
         article_text = '. '.join(target_sents)
         overall_text.append(article_text)
 
@@ -170,4 +183,19 @@ if __name__ == "__main__":
         score = rouge.score(article_summary, tr_summary)
         scores.append(score)
 
-    tr_overall_summary = summarize('. '.join(overall_text))
+    overall_text = '. '.join(overall_text)
+    tr_overall_summary = summarize(overall_text)
+    tfidf_overall_summary = tfidf_summarize(overall_sents)
+    overall_score = rouge.score(tfidf_overall_summary, tr_overall_summary)
+    
+    print()
+
+    for i, score in enumerate(scores):
+        print("Scores for document ", i)
+        print("R-1 Precision: {:.3f} | R-L Precision: {:.3f}".format(score["rouge1"].precision, score["rougeL"].precision))
+        print("R-1 Recall:    {:.3f} | R-L Recall:    {:.3f}".format(score["rouge1"].recall, score["rougeL"].recall))
+        print()
+
+    print("Overall scores: ")
+    print("R-1 Precision: {:.3f} | R-L Precision: {:.3f}".format(overall_score["rouge1"].precision, overall_score["rougeL"].precision))
+    print("R-1 Recall:    {:.3f} | R-L Recall:    {:.3f}".format(overall_score["rouge1"].recall, overall_score["rougeL"].recall))
